@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  ros-backend:
+    build: ./backend
+    container_name: ros-backend
+    environment:
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    network_mode: host
+    # If using localhost DDS like CycloneDDS, `network_mode: host` may be important
+
+  react-frontend:
+    build: ./frontend
+    container_name: react-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
+    command: npm run dev

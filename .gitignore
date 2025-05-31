@@ -1,0 +1,16 @@
+#ignore pycache
+__pycache__/
+
+#ignore node_modules
+node_modules/
+
+#ignore .env
+.env
+
+#ignore .next
+.next/
+
+#ignore .env.local
+.env.local
+
+#ignore .env.development.local
