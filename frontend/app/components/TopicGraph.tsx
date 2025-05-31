@@ -41,9 +41,10 @@ export default function ROSGraph({ data, onNodeClick }: ROSGraphProps) {
   useEffect(() => {
     const updateDimensions = () => {
       if (containerRef.current) {
+        const width = containerRef.current.clientWidth;
         setDimensions({
-          width: containerRef.current.clientWidth,
-          height: 200
+          width: width,
+          height: width // Make height equal to width for square aspect ratio
         });
       }
     };
@@ -102,7 +103,7 @@ export default function ROSGraph({ data, onNodeClick }: ROSGraphProps) {
   }, [data, dimensions]);
 
   return (
-    <div ref={containerRef} className="w-full h-[200px] border rounded-lg shadow-lg relative">
+    <div ref={containerRef} className="w-full aspect-square border rounded-lg shadow-lg relative">
       <ForceGraph2D
         ref={graphRef}
         graphData={data}

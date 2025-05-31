@@ -12,26 +12,26 @@ export default function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex justify-center items-center h-16">
           <div className="flex space-x-8">
-            <Link
-              href="/topics"
+        <Link
+          href="/topics"
               className={`px-4 py-2 rounded-md text-lg font-medium transition-colors duration-200 ${
                 pathname === '/topics' 
                   ? 'bg-gray-900 text-white' 
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              Topics
-            </Link>
-            <Link
-              href="/nodes"
+          }`}
+        >
+          Topics
+        </Link>
+        <Link
+          href="/nodes"
               className={`px-4 py-2 rounded-md text-lg font-medium transition-colors duration-200 ${
                 pathname === '/nodes' 
                   ? 'bg-gray-900 text-white' 
                   : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-              }`}
-            >
-              Nodes
-            </Link>
+          }`}
+        >
+          Nodes
+        </Link>
           </div>
         </div>
       </div>

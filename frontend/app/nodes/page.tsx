@@ -254,81 +254,87 @@ export default function NodesPage() {
 
               {nodeInfo && (
                 <>
-                  {/* Graph section */}
-                  <div className="mb-6">
-                    <h3 className="font-semibold mb-2">Node Graph</h3>
-                    <NodeGraph nodeInfo={{
-                      node_name: nodeInfo.node,
-                      node_namespace: nodeInfo.namespace,
-                      publishers: nodeInfo.publishes.map(pub => ({
-                        topic: pub.topic,
-                        topic_type: pub.types.join(', ')
-                      })),
-                      subscribers: nodeInfo.subscribes.map(sub => ({
-                        topic: sub.topic,
-                        topic_type: sub.types.join(', ')
-                      }))
-                    }} />
-                  </div>
+                  {/* Info section with graph and text side by side */}
+                  <div className="flex gap-6 mb-6">
+                    {/* Graph section */}
+                    <div className="w-1/2 min-w-[400px]">
+                      <h3 className="font-semibold mb-2">Node Graph</h3>
+                      <NodeGraph nodeInfo={{
+                        node_name: nodeInfo.node,
+                        node_namespace: nodeInfo.namespace,
+                        publishers: nodeInfo.publishes.map(pub => ({
+                          topic: pub.topic,
+                          topic_type: pub.types.join(', ')
+                        })),
+                        subscribers: nodeInfo.subscribes.map(sub => ({
+                          topic: sub.topic,
+                          topic_type: sub.types.join(', ')
+                        }))
+                      }} />
+                    </div>
 
-                  <div className="mb-4 border-t pt-4">
-                    <h3 className="font-semibold">Publishes:</h3>
-                    {nodeInfo.publishes.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {nodeInfo.publishes.map((pub, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => handleTopicClick(pub.topic)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {pub.topic}
-                          </button>{' '}
-                          — {pub.types.join(', ')}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                    {/* Text content section */}
+                    <div className="w-1/2 flex-1">
+                      <div className="mb-4">
+                        <h3 className="font-semibold">Publishes:</h3>
+                        {nodeInfo.publishes.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {nodeInfo.publishes.map((pub, i) => (
+                            <li key={i}>
+                              <button
+                                onClick={() => handleTopicClick(pub.topic)}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {pub.topic}
+                              </button>{' '}
+                              — {pub.types.join(', ')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                  <div className="mb-4">
-                    <h3 className="font-semibold">Subscribes:</h3>
-                    {nodeInfo.subscribes.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {nodeInfo.subscribes.map((sub, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => handleTopicClick(sub.topic)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {sub.topic}
-                          </button>{' '}
-                          — {sub.types.join(', ')}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                      <div className="mb-4">
+                        <h3 className="font-semibold">Subscribes:</h3>
+                        {nodeInfo.subscribes.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {nodeInfo.subscribes.map((sub, i) => (
+                            <li key={i}>
+                              <button
+                                onClick={() => handleTopicClick(sub.topic)}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {sub.topic}
+                              </button>{' '}
+                              — {sub.types.join(', ')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                  <div className="mb-4">
-                    <h3 className="font-semibold">Services:</h3>
-                    {nodeInfo.services.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {nodeInfo.services.map((srv, i) => (
-                        <li key={i}>
-                          {srv.service} — {srv.types.join(', ')}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                      <div className="mb-4">
+                        <h3 className="font-semibold">Services:</h3>
+                        {nodeInfo.services.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {nodeInfo.services.map((srv, i) => (
+                            <li key={i}>
+                              {srv.service} — {srv.types.join(', ')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                  <div>
-                    <h3 className="font-semibold">Clients:</h3>
-                    {nodeInfo.clients.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {nodeInfo.clients.map((clt, i) => (
-                        <li key={i}>
-                          {clt.service} — {clt.types.join(', ')}
-                        </li>
-                      ))}
-                    </ul>
+                      <div>
+                        <h3 className="font-semibold">Clients:</h3>
+                        {nodeInfo.clients.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {nodeInfo.clients.map((clt, i) => (
+                            <li key={i}>
+                              {clt.service} — {clt.types.join(', ')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}

@@ -224,48 +224,54 @@ export default function TopicsPage() {
 
               {topicInfo && (
                 <>
-                  {/* Graph section */}
-                  <div className="mb-6">
-                    <h3 className="font-semibold mb-2">Topic Graph</h3>
-                    <ROSGraph data={graphData} />
-                  </div>
+                  {/* Info section with graph and text side by side */}
+                  <div className="flex gap-6 mb-6">
+                    {/* Graph section */}
+                    <div className="w-1/2 min-w-[400px]">
+                      <h3 className="font-semibold mb-2">Topic Graph</h3>
+                      <ROSGraph data={graphData} />
+                    </div>
 
-                  {/* Publishers section */}
-                  <div className="mb-4 border-t pt-4">
-                    <h3 className="font-semibold">Publishers:</h3>
-                    {topicInfo.publishers.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {topicInfo.publishers.map((pub, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => handleNodeClick(pub.node_name, pub.node_namespace)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {pub.node_name}
-                          </button>{' '}
-                          <em>({pub.node_namespace})</em> — {pub.topic_type}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+                    {/* Text content section */}
+                    <div className="w-1/2 flex-1">
+                      {/* Publishers section */}
+                      <div className="mb-4">
+                        <h3 className="font-semibold">Publishers:</h3>
+                        {topicInfo.publishers.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {topicInfo.publishers.map((pub, i) => (
+                            <li key={i}>
+                              <button
+                                onClick={() => handleNodeClick(pub.node_name, pub.node_namespace)}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {pub.node_name}
+                              </button>{' '}
+                              <em>({pub.node_namespace})</em> — {pub.topic_type}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
 
-                  {/* Subscribers section */}
-                  <div className="mb-4">
-                    <h3 className="font-semibold">Subscribers:</h3>
-                    {topicInfo.subscribers.length === 0 && <p>None</p>}
-                    <ul className="list-disc pl-6">
-                      {topicInfo.subscribers.map((sub, i) => (
-                        <li key={i}>
-                          <button
-                            onClick={() => handleNodeClick(sub.node_name, sub.node_namespace)}
-                            className="text-blue-600 hover:underline"
-                          >
-                            {sub.node_name}
-                          </button>{' '}
-                          <em>({sub.node_namespace})</em> — {sub.topic_type}
-                        </li>
-                      ))}
-                    </ul>
+                      {/* Subscribers section */}
+                      <div className="mb-4">
+                        <h3 className="font-semibold">Subscribers:</h3>
+                        {topicInfo.subscribers.length === 0 && <p>None</p>}
+                        <ul className="list-disc pl-6">
+                          {topicInfo.subscribers.map((sub, i) => (
+                            <li key={i}>
+                              <button
+                                onClick={() => handleNodeClick(sub.node_name, sub.node_namespace)}
+                                className="text-blue-600 hover:underline"
+                              >
+                                {sub.node_name}
+                              </button>{' '}
+                              <em>({sub.node_namespace})</em> — {sub.topic_type}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
