@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import React from 'react';
 import { API_BASE_URL } from '../config';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 type Topic = {
   name: string;
@@ -27,6 +28,8 @@ type TopicInfo = {
 };
 
 export default function TopicsPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [topics, setTopics] = useState<Topic[]>([]);
   const [loadingTopics, setLoadingTopics] = useState(true);
   const [errorTopics, setErrorTopics] = useState<string | null>(null);
@@ -37,7 +40,7 @@ export default function TopicsPage() {
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
 
-  // Load topics list
+  // Load topics list and handle URL parameter
   useEffect(() => {
     async function fetchTopics() {
       try {
@@ -45,6 +48,23 @@ export default function TopicsPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: Topic[] = await res.json();
         setTopics(data);
+
+        // Handle URL parameter for topic selection
+        const topicParam = searchParams.get('topic');
+        if (topicParam) {
+          const decodedTopic = decodeURIComponent(topicParam);
+          console.log('URL topic parameter:', decodedTopic); // Debug log
+          
+          // Set the search query to the topic name
+          setSearchQuery(decodedTopic);
+          
+          // Find and select the topic
+          const targetTopic = data.find(topic => topic.name === decodedTopic);
+          if (targetTopic) {
+            console.log('Found target topic:', targetTopic); // Debug log
+            setSelectedTopic(targetTopic.encoded_name);
+          }
+        }
       } catch (err: any) {
         setErrorTopics(err.message);
       } finally {
@@ -52,7 +72,29 @@ export default function TopicsPage() {
       }
     }
     fetchTopics();
-  }, []);
+  }, [searchParams]);
+
+  // When search query changes, try to find and select a matching topic
+  useEffect(() => {
+    if (searchQuery && topics.length > 0) {
+      console.log('Search query changed:', searchQuery); // Debug log
+      
+      // First try exact match
+      let matchingTopic = topics.find(topic => topic.name === searchQuery);
+      
+      // If no exact match, find first topic that contains the search query
+      if (!matchingTopic) {
+        matchingTopic = topics.find(topic => 
+          topic.name.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+      }
+      
+      if (matchingTopic) {
+        console.log('Found matching topic:', matchingTopic); // Debug log
+        setSelectedTopic(matchingTopic.encoded_name);
+      }
+    }
+  }, [searchQuery, topics]);
 
   // Load topic info when a topic is selected
   useEffect(() => {
@@ -88,6 +130,13 @@ export default function TopicsPage() {
   const filteredTopics = topics.filter(topic => 
     topic.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleNodeClick = (nodeName: string, nodeNamespace: string) => {
+    // Ensure we have the correct format: namespace/name
+    const fullNodeName = nodeNamespace === '/' ? nodeName : `${nodeNamespace}/${nodeName}`;
+    console.log('Navigating to node:', fullNodeName); // Debug log
+    router.push(`/nodes?node=${encodeURIComponent(fullNodeName)}`);
+  };
 
   return (
     <main className="p-8">
@@ -151,7 +200,13 @@ export default function TopicsPage() {
                     <ul className="list-disc pl-6">
                       {topicInfo.publishers.map((pub, i) => (
                         <li key={i}>
-                          {pub.node_name} <em>({pub.node_namespace})</em> — {pub.topic_type}
+                          <button
+                            onClick={() => handleNodeClick(pub.node_name, pub.node_namespace)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {pub.node_name}
+                          </button>{' '}
+                          <em>({pub.node_namespace})</em> — {pub.topic_type}
                         </li>
                       ))}
                     </ul>
@@ -163,7 +218,13 @@ export default function TopicsPage() {
                     <ul className="list-disc pl-6">
                       {topicInfo.subscribers.map((sub, i) => (
                         <li key={i}>
-                          {sub.node_name} <em>({sub.node_namespace})</em> — {sub.topic_type}
+                          <button
+                            onClick={() => handleNodeClick(sub.node_name, sub.node_namespace)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {sub.node_name}
+                          </button>{' '}
+                          <em>({sub.node_namespace})</em> — {sub.topic_type}
                         </li>
                       ))}
                     </ul>

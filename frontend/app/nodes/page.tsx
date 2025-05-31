@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import SearchBar from '../components/SearchBar';
 import React from 'react';
 import { API_BASE_URL } from '../config';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 type Node = {
   name: string;
@@ -33,6 +34,8 @@ type NodeInfo = {
 };
 
 export default function NodesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [nodes, setNodes] = useState<Node[]>([]);
   const [loadingNodes, setLoadingNodes] = useState(true);
   const [errorNodes, setErrorNodes] = useState<string | null>(null);
@@ -43,58 +46,127 @@ export default function NodesPage() {
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
 
-  // Load nodes list
+  const handleTopicClick = (topic: string) => {
+    console.log('Navigating to topic:', topic); // Debug log
+    router.push(`/topics?topic=${encodeURIComponent(topic)}`);
+  };
+
+  // Function to fetch node info
+  const fetchNodeInfo = async (node: Node) => {
+    console.log('Fetching info for node:', node); // Debug log
+    setLoadingInfo(true);
+    setErrorInfo(null);
+    try {
+      const fullNodeName = node.namespace === '/' 
+        ? node.name 
+        : `${node.namespace}/${node.name}`;
+      console.log('Fetching from API:', fullNodeName); // Debug log
+      const res = await fetch(
+        `${API_BASE_URL}/nodes/${encodeURIComponent(fullNodeName)}`
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: NodeInfo = await res.json();
+      console.log('Received node info:', data); // Debug log
+      setNodeInfo(data);
+    } catch (err: any) {
+      console.error('Error fetching node info:', err); // Debug log
+      setErrorInfo(err.message);
+    } finally {
+      setLoadingInfo(false);
+    }
+  };
+
+  // Load nodes list and handle URL parameter
   useEffect(() => {
     async function fetchNodes() {
       try {
         const res = await fetch(`${API_BASE_URL}/nodes`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data: Node[] = await res.json();
+        console.log('Fetched nodes:', data); // Debug log
+        
         // Add unique id to each node
         const nodesWithIds = data.map((node, index) => ({
           ...node,
           id: `${node.namespace}/${node.name}-${index}`
         }));
-        console.log('Nodes with IDs:', nodesWithIds);
         setNodes(nodesWithIds);
+
+        // Handle URL parameter for node selection
+        const nodeParam = searchParams.get('node');
+        console.log('URL node parameter:', nodeParam); // Debug log
+        
+        if (nodeParam) {
+          const decodedNode = decodeURIComponent(nodeParam);
+          console.log('Decoded node:', decodedNode); // Debug log
+          
+          // Set the search query to the node name
+          setSearchQuery(decodedNode);
+          
+          // Find and select the node
+          const [namespace, name] = decodedNode.split('/');
+          console.log('Looking for node:', { namespace, name }); // Debug log
+          
+          const targetNode = nodesWithIds.find(
+            node => {
+              const matches = node.name === name && node.namespace === (namespace || '/');
+              console.log('Checking node:', node, 'matches:', matches); // Debug log
+              return matches;
+            }
+          );
+          
+          if (targetNode) {
+            console.log('Found target node:', targetNode); // Debug log
+            setSelectedNode(targetNode);
+            fetchNodeInfo(targetNode);
+          } else {
+            console.log('No matching node found'); // Debug log
+          }
+        }
       } catch (err: any) {
+        console.error('Error fetching nodes:', err); // Debug log
         setErrorNodes(err.message);
       } finally {
         setLoadingNodes(false);
       }
     }
     fetchNodes();
-  }, []);
+  }, [searchParams]);
 
-  // Load node info when a node is selected
+  // When search query changes, try to find and select a matching node
   useEffect(() => {
-    if (!selectedNode) {
-      setNodeInfo(null);
-      return;
-    }
-    async function fetchNodeInfo() {
-      setLoadingInfo(true);
-      setErrorInfo(null);
-      try {
-        if (!selectedNode) return;
-        // Use the full node name (namespace + name) for the API call
-        const fullNodeName = selectedNode.namespace === '/' 
-          ? selectedNode.name 
-          : `${selectedNode.namespace}/${selectedNode.name}`;
-        const res = await fetch(
-          `${API_BASE_URL}/nodes/${encodeURIComponent(fullNodeName)}`
-        );
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data: NodeInfo = await res.json();
-        setNodeInfo(data);
-      } catch (err: any) {
-        setErrorInfo(err.message);
-      } finally {
-        setLoadingInfo(false);
+    if (searchQuery && nodes.length > 0) {
+      console.log('Search query changed:', searchQuery); // Debug log
+      const [namespace, name] = searchQuery.split('/');
+      console.log('Looking for node:', { namespace, name }); // Debug log
+      
+      // First try exact match
+      let matchingNode = nodes.find(
+        node => {
+          const matches = node.name === name && node.namespace === (namespace || '/');
+          console.log('Checking exact match for node:', node, 'matches:', matches); // Debug log
+          return matches;
+        }
+      );
+
+      // If no exact match, find first node that contains the search query
+      if (!matchingNode) {
+        matchingNode = nodes.find(node => {
+          const fullNodeName = node.namespace === '/' ? node.name : `${node.namespace}/${node.name}`;
+          return fullNodeName.toLowerCase().includes(searchQuery.toLowerCase());
+        });
+        console.log('Found partial match:', matchingNode); // Debug log
+      }
+      
+      if (matchingNode) {
+        console.log('Found matching node:', matchingNode); // Debug log
+        setSelectedNode(matchingNode);
+        fetchNodeInfo(matchingNode);
+      } else {
+        console.log('No matching node found for search query'); // Debug log
       }
     }
-    fetchNodeInfo();
-  }, [selectedNode]);
+  }, [searchQuery, nodes]);
 
   // Filter nodes based on search query
   const filteredNodes = nodes.filter(node => {
@@ -103,6 +175,23 @@ export default function NodesPage() {
       : `${node.namespace}/${node.name}`;
     return fullNodeName.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  // Select first filtered node when search results change
+  useEffect(() => {
+    if (filteredNodes.length > 0 && !selectedNode) {
+      setSelectedNode(filteredNodes[0]);
+      fetchNodeInfo(filteredNodes[0]);
+    }
+  }, [filteredNodes]);
+
+  // Load node info when a node is selected
+  useEffect(() => {
+    if (selectedNode) {
+      fetchNodeInfo(selectedNode);
+    } else {
+      setNodeInfo(null);
+    }
+  }, [selectedNode]);
 
   // Generate a unique key for each node
   const getNodeKey = (node: Node) => {
@@ -170,7 +259,13 @@ export default function NodesPage() {
                     <ul className="list-disc pl-6">
                       {nodeInfo.publishes.map((pub, i) => (
                         <li key={i}>
-                          {pub.topic} — {pub.types.join(', ')}
+                          <button
+                            onClick={() => handleTopicClick(pub.topic)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {pub.topic}
+                          </button>{' '}
+                          — {pub.types.join(', ')}
                         </li>
                       ))}
                     </ul>
@@ -182,7 +277,13 @@ export default function NodesPage() {
                     <ul className="list-disc pl-6">
                       {nodeInfo.subscribes.map((sub, i) => (
                         <li key={i}>
-                          {sub.topic} — {sub.types.join(', ')}
+                          <button
+                            onClick={() => handleTopicClick(sub.topic)}
+                            className="text-blue-600 hover:underline"
+                          >
+                            {sub.topic}
+                          </button>{' '}
+                          — {sub.types.join(', ')}
                         </li>
                       ))}
                     </ul>

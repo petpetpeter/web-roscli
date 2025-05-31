@@ -6,6 +6,7 @@ services:
     container_name: ros-backend
     environment:
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_DOMAIN_ID=77
     volumes:
       - ./backend:/app
     ports:
