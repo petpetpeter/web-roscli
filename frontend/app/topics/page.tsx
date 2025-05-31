@@ -1,31 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import SearchBar from '../components/SearchBar';
 import React from 'react';
 import { API_BASE_URL } from '../config';
 import { useRouter, useSearchParams } from 'next/navigation';
-
-type Topic = {
-  name: string;
-  types: string[];
-  encoded_name: string;
-};
-
-type TopicInfo = {
-  topic: string;
-  encoded_topic: string;
-  publishers: {
-    node_name: string;
-    node_namespace: string;
-    topic_type: string;
-  }[];
-  subscribers: {
-    node_name: string;
-    node_namespace: string;
-    topic_type: string;
-  }[];
-};
+import { Topic, TopicInfo } from '../types';
+import ROSGraph from '../components/TopicGraph';
 
 export default function TopicsPage() {
   const router = useRouter();
@@ -138,6 +119,55 @@ export default function TopicsPage() {
     router.push(`/nodes?node=${encodeURIComponent(fullNodeName)}`);
   };
 
+  // Prepare graph data
+  const graphData = useMemo(() => {
+    if (!topicInfo) return { nodes: [], links: [] };
+
+    const nodes = [
+      {
+        id: topicInfo.topic,
+        name: topicInfo.topic,
+        type: 'topic' as const,
+      },
+    ];
+
+    const links = [];
+
+    // Add publishers
+    topicInfo.publishers.forEach((pub) => {
+      const nodeId = `${pub.node_namespace}/${pub.node_name}`;
+      nodes.push({
+        id: nodeId,
+        name: pub.node_name,
+        type: 'publisher' as const,
+        namespace: pub.node_namespace,
+      });
+      links.push({
+        source: nodeId,
+        target: topicInfo.topic,
+        type: 'publishes' as const,
+      });
+    });
+
+    // Add subscribers
+    topicInfo.subscribers.forEach((sub) => {
+      const nodeId = `${sub.node_namespace}/${sub.node_name}`;
+      nodes.push({
+        id: nodeId,
+        name: sub.node_name,
+        type: 'subscriber' as const,
+        namespace: sub.node_namespace,
+      });
+      links.push({
+        source: topicInfo.topic,
+        target: nodeId,
+        type: 'subscribes' as const,
+      });
+    });
+
+    return { nodes, links };
+  }, [topicInfo]);
+
   return (
     <main className="p-8">
       <h1 className="text-2xl font-bold mb-6">ROS 2 Topics</h1>
@@ -194,7 +224,14 @@ export default function TopicsPage() {
 
               {topicInfo && (
                 <>
-                  <div className="mb-4">
+                  {/* Graph section */}
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-2">Topic Graph</h3>
+                    <ROSGraph data={graphData} />
+                  </div>
+
+                  {/* Publishers section */}
+                  <div className="mb-4 border-t pt-4">
                     <h3 className="font-semibold">Publishers:</h3>
                     {topicInfo.publishers.length === 0 && <p>None</p>}
                     <ul className="list-disc pl-6">
@@ -212,7 +249,8 @@ export default function TopicsPage() {
                     </ul>
                   </div>
 
-                  <div>
+                  {/* Subscribers section */}
+                  <div className="mb-4">
                     <h3 className="font-semibold">Subscribers:</h3>
                     {topicInfo.subscribers.length === 0 && <p>None</p>}
                     <ul className="list-disc pl-6">

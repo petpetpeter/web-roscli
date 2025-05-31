@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import SearchBar from '../components/SearchBar';
 import React from 'react';
 import { API_BASE_URL } from '../config';
 import { useSearchParams, useRouter } from 'next/navigation';
+import NodeGraph from '../components/NodeGraph';
 
 type Node = {
   name: string;
@@ -253,7 +254,24 @@ export default function NodesPage() {
 
               {nodeInfo && (
                 <>
-                  <div className="mb-4">
+                  {/* Graph section */}
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-2">Node Graph</h3>
+                    <NodeGraph nodeInfo={{
+                      node_name: nodeInfo.node,
+                      node_namespace: nodeInfo.namespace,
+                      publishers: nodeInfo.publishes.map(pub => ({
+                        topic: pub.topic,
+                        topic_type: pub.types.join(', ')
+                      })),
+                      subscribers: nodeInfo.subscribes.map(sub => ({
+                        topic: sub.topic,
+                        topic_type: sub.types.join(', ')
+                      }))
+                    }} />
+                  </div>
+
+                  <div className="mb-4 border-t pt-4">
                     <h3 className="font-semibold">Publishes:</h3>
                     {nodeInfo.publishes.length === 0 && <p>None</p>}
                     <ul className="list-disc pl-6">
