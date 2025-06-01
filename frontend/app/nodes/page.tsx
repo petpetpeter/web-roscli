@@ -5,7 +5,7 @@ import SearchBar from '../components/SearchBar';
 import React from 'react';
 import { API_BASE_URL } from '../config';
 import { useSearchParams, useRouter } from 'next/navigation';
-import NodeGraph from '../components/NodeGraph';
+import ROSGraph from '../components/TopicGraph';
 
 type Node = {
   name: string;
@@ -259,7 +259,7 @@ export default function NodesPage() {
                     {/* Graph section */}
                     <div className="w-1/2 min-w-[400px]">
                       <h3 className="font-semibold mb-2">Node Graph</h3>
-                      <NodeGraph nodeInfo={{
+                      <ROSGraph nodeInfo={{
                         node_name: nodeInfo.node,
                         node_namespace: nodeInfo.namespace,
                         publishers: nodeInfo.publishes.map(pub => ({

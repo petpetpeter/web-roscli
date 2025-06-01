@@ -25,17 +25,83 @@ type GraphData = {
   links: GraphLink[];
 };
 
+type NodeInfo = {
+  node_name: string;
+  node_namespace: string;
+  publishers: {
+    topic: string;
+    topic_type: string;
+  }[];
+  subscribers: {
+    topic: string;
+    topic_type: string;
+  }[];
+};
+
 type ROSGraphProps = {
-  data: GraphData;
+  data?: GraphData;
+  nodeInfo?: NodeInfo;
   onNodeClick?: (node: GraphNode) => void;
 };
 
-export default function ROSGraph({ data, onNodeClick }: ROSGraphProps) {
+export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSGraphProps) {
   const router = useRouter();
   const graphRef = useRef<any>();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 200 });
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+
+  // Transform nodeInfo into graph data if provided
+  const data = useMemo(() => {
+    if (propData) return propData;
+    if (!nodeInfo) return { nodes: [], links: [] };
+
+    const nodes: GraphNode[] = [
+      {
+        id: `${nodeInfo.node_namespace}/${nodeInfo.node_name}`,
+        name: nodeInfo.node_name,
+        type: 'node',
+        namespace: nodeInfo.node_namespace,
+      },
+    ];
+
+    const links: GraphLink[] = [];
+
+    // Add publishers
+    nodeInfo.publishers.forEach((pub) => {
+      const topicId = pub.topic;
+      nodes.push({
+        id: topicId,
+        name: pub.topic,
+        type: 'topic',
+      });
+      links.push({
+        source: `${nodeInfo.node_namespace}/${nodeInfo.node_name}`,
+        target: topicId,
+        type: 'publishes_to',
+      });
+    });
+
+    // Add subscribers
+    nodeInfo.subscribers.forEach((sub) => {
+      const topicId = sub.topic;
+      // Only add topic node if it doesn't exist yet
+      if (!nodes.some(n => n.id === topicId)) {
+        nodes.push({
+          id: topicId,
+          name: sub.topic,
+          type: 'topic',
+        });
+      }
+      links.push({
+        source: topicId,
+        target: `${nodeInfo.node_namespace}/${nodeInfo.node_name}`,
+        type: 'subscribes_to',
+      });
+    });
+
+    return { nodes, links };
+  }, [propData, nodeInfo]);
 
   // Update dimensions when container size changes
   useEffect(() => {
@@ -86,7 +152,10 @@ export default function ROSGraph({ data, onNodeClick }: ROSGraphProps) {
   const handleNodeClick = useCallback((node: GraphNode) => {
     if (onNodeClick) {
       onNodeClick(node);
-    } else if (node.type !== 'topic') {
+    } else if (node.type === 'topic') {
+      router.push(`/topics?topic=${encodeURIComponent(node.name)}`);
+    } else if (node.type === 'node' || node.type === 'publisher' || node.type === 'subscriber') {
+      // For nodes, publishers, and subscribers, navigate to the node page
       const fullNodeName = node.namespace === '/' ? node.name : `${node.namespace}/${node.name}`;
       router.push(`/nodes?node=${encodeURIComponent(fullNodeName)}`);
     }
