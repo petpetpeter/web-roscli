@@ -7,6 +7,29 @@ import { API_BASE_URL } from '../config';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Topic, TopicInfo } from '../types';
 import ROSGraph from '../components/TopicGraph';
+import JourneyHistory from '../components/JourneyHistory';
+import { useJourneyStore, JourneyItem } from '../store/journeyStore';
+
+type NodeType = 'topic' | 'publisher' | 'subscriber';
+
+type GraphNode = {
+  id: string;
+  name: string;
+  type: NodeType;
+  namespace?: string;
+  isHistory?: boolean;
+};
+
+type GraphLink = {
+  source: string;
+  target: string;
+  type: 'publishes' | 'subscribes';
+};
+
+type GraphData = {
+  nodes: GraphNode[];
+  links: GraphLink[];
+};
 
 export default function TopicsPage() {
   const router = useRouter();
@@ -20,6 +43,9 @@ export default function TopicsPage() {
   const [topicInfo, setTopicInfo] = useState<TopicInfo | null>(null);
   const [loadingInfo, setLoadingInfo] = useState(false);
   const [errorInfo, setErrorInfo] = useState<string | null>(null);
+
+  const { addItem } = useJourneyStore();
+  const journeyItems = useJourneyStore((state: { items: JourneyItem[] }) => state.items);
 
   // Load topics list and handle URL parameter
   useEffect(() => {
@@ -119,54 +145,73 @@ export default function TopicsPage() {
     router.push(`/nodes?node=${encodeURIComponent(fullNodeName)}`);
   };
 
-  // Prepare graph data
+  // Transform topic info into graph data
   const graphData = useMemo(() => {
     if (!topicInfo) return { nodes: [], links: [] };
 
-    const nodes = [
-      {
-        id: topicInfo.topic,
-        name: topicInfo.topic,
-        type: 'topic' as const,
-      },
-    ];
+    const nodes: GraphNode[] = [];
+    const links: GraphLink[] = [];
+    const topicId = topicInfo.topic;
 
-    const links = [];
+    // Add topic node
+    nodes.push({
+      id: topicId,
+      name: topicInfo.topic,
+      type: 'topic',
+      isHistory: journeyItems.some((item: JourneyItem) => item.type === 'topic' && item.name === topicInfo.topic)
+    });
 
     // Add publishers
-    topicInfo.publishers.forEach((pub) => {
-      const nodeId = `${pub.node_namespace}/${pub.node_name}`;
-      nodes.push({
-        id: nodeId,
-        name: pub.node_name,
-        type: 'publisher' as const,
-        namespace: pub.node_namespace,
+    if (topicInfo.publishers) {
+      topicInfo.publishers.forEach((pub) => {
+        const nodeId = `${pub.node_namespace}/${pub.node_name}`;
+        nodes.push({
+          id: nodeId,
+          name: pub.node_name,
+          type: 'publisher',
+          namespace: pub.node_namespace,
+          isHistory: journeyItems.some((item: JourneyItem) => 
+            item.type === 'node' && 
+            item.name === pub.node_name && 
+            item.namespace === pub.node_namespace
+          )
+        });
+        links.push({
+          source: nodeId,
+          target: topicId,
+          type: 'publishes',
+        });
       });
-      links.push({
-        source: nodeId,
-        target: topicInfo.topic,
-        type: 'publishes' as const,
-      });
-    });
+    }
 
     // Add subscribers
-    topicInfo.subscribers.forEach((sub) => {
-      const nodeId = `${sub.node_namespace}/${sub.node_name}`;
-      nodes.push({
-        id: nodeId,
-        name: sub.node_name,
-        type: 'subscriber' as const,
-        namespace: sub.node_namespace,
+    if (topicInfo.subscribers) {
+      topicInfo.subscribers.forEach((sub) => {
+        const nodeId = `${sub.node_namespace}/${sub.node_name}`;
+        // Only add node if it doesn't exist yet
+        if (!nodes.some(n => n.id === nodeId)) {
+          nodes.push({
+            id: nodeId,
+            name: sub.node_name,
+            type: 'subscriber',
+            namespace: sub.node_namespace,
+            isHistory: journeyItems.some((item: JourneyItem) => 
+              item.type === 'node' && 
+              item.name === sub.node_name && 
+              item.namespace === sub.node_namespace
+            )
+          });
+        }
+        links.push({
+          source: topicId,
+          target: nodeId,
+          type: 'subscribes',
+        });
       });
-      links.push({
-        source: topicInfo.topic,
-        target: nodeId,
-        type: 'subscribes' as const,
-      });
-    });
+    }
 
     return { nodes, links };
-  }, [topicInfo]);
+  }, [topicInfo, journeyItems]);
 
   return (
     <main className="p-8">
@@ -191,7 +236,7 @@ export default function TopicsPage() {
               ) : (
                 <ul className="list-disc pl-6 mt-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                   {filteredTopics.map((topic) => (
-                    <li key={topic.encoded_name}>
+                    <li key={topic.name}>
                       <button
                         onClick={() => setSelectedTopic(topic.encoded_name)}
                         className={`text-blue-600 hover:underline ${
@@ -200,15 +245,15 @@ export default function TopicsPage() {
                       >
                         {topic.name}
                       </button>
-                      <span className="text-gray-500 ml-2">
-                        ({topic.types.join(', ')})
-                      </span>
                     </li>
                   ))}
                 </ul>
               )}
             </>
           )}
+
+          {/* Journey History */}
+          <JourneyHistory />
         </div>
 
         {/* Right side - Selected topic info */}
@@ -237,9 +282,9 @@ export default function TopicsPage() {
                       {/* Publishers section */}
                       <div className="mb-4">
                         <h3 className="font-semibold">Publishers:</h3>
-                        {topicInfo.publishers.length === 0 && <p>None</p>}
+                        {(!topicInfo.publishers || topicInfo.publishers.length === 0) && <p>None</p>}
                         <ul className="list-disc pl-6">
-                          {topicInfo.publishers.map((pub, i) => (
+                          {topicInfo.publishers?.map((pub, i) => (
                             <li key={i}>
                               <button
                                 onClick={() => handleNodeClick(pub.node_name, pub.node_namespace)}
@@ -256,9 +301,9 @@ export default function TopicsPage() {
                       {/* Subscribers section */}
                       <div className="mb-4">
                         <h3 className="font-semibold">Subscribers:</h3>
-                        {topicInfo.subscribers.length === 0 && <p>None</p>}
+                        {(!topicInfo.subscribers || topicInfo.subscribers.length === 0) && <p>None</p>}
                         <ul className="list-disc pl-6">
-                          {topicInfo.subscribers.map((sub, i) => (
+                          {topicInfo.subscribers?.map((sub, i) => (
                             <li key={i}>
                               <button
                                 onClick={() => handleNodeClick(sub.node_name, sub.node_namespace)}

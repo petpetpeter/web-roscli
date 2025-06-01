@@ -6,6 +6,7 @@ import React from 'react';
 import { API_BASE_URL } from '../config';
 import { useSearchParams, useRouter } from 'next/navigation';
 import ROSGraph from '../components/TopicGraph';
+import JourneyHistory from '../components/JourneyHistory';
 
 type Node = {
   name: string;
@@ -238,6 +239,9 @@ export default function NodesPage() {
               )}
             </>
           )}
+
+          {/* Journey History */}
+          <JourneyHistory />
         </div>
 
         {/* Right side - Selected node info */}

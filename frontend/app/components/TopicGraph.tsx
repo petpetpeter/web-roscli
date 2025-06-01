@@ -4,6 +4,7 @@ import React, { useCallback, useMemo, useRef, useEffect, useState } from 'react'
 import ForceGraph2D from 'react-force-graph-2d';
 import { TopicInfo } from '../types';
 import { useRouter } from 'next/navigation';
+import { useJourneyStore, JourneyItem } from '../store/journeyStore';
 
 type NodeType = 'topic' | 'publisher' | 'subscriber' | 'node';
 
@@ -12,6 +13,7 @@ type GraphNode = {
   name: string;
   type: NodeType;
   namespace?: string;
+  isHistory?: boolean;
 };
 
 type GraphLink = {
@@ -46,10 +48,12 @@ type ROSGraphProps = {
 
 export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSGraphProps) {
   const router = useRouter();
+  const addToJourney = useJourneyStore(state => state.addItem);
   const graphRef = useRef<any>();
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 200 });
   const [hoveredNode, setHoveredNode] = useState<GraphNode | null>(null);
+  const journeyItems = useJourneyStore(state => state.items);
 
   // Transform nodeInfo into graph data if provided
   const data = useMemo(() => {
@@ -62,6 +66,11 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
         name: nodeInfo.node_name,
         type: 'node',
         namespace: nodeInfo.node_namespace,
+        isHistory: journeyItems.some((item: JourneyItem) => 
+          item.type === 'node' && 
+          item.name === nodeInfo.node_name && 
+          item.namespace === nodeInfo.node_namespace
+        )
       },
     ];
 
@@ -74,6 +83,10 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
         id: topicId,
         name: pub.topic,
         type: 'topic',
+        isHistory: journeyItems.some((item: JourneyItem) => 
+          item.type === 'topic' && 
+          item.name === pub.topic
+        )
       });
       links.push({
         source: `${nodeInfo.node_namespace}/${nodeInfo.node_name}`,
@@ -91,6 +104,10 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
           id: topicId,
           name: sub.topic,
           type: 'topic',
+          isHistory: journeyItems.some((item: JourneyItem) => 
+            item.type === 'topic' && 
+            item.name === sub.topic
+          )
         });
       }
       links.push({
@@ -101,7 +118,7 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
     });
 
     return { nodes, links };
-  }, [propData, nodeInfo]);
+  }, [propData, nodeInfo, journeyItems]);
 
   // Update dimensions when container size changes
   useEffect(() => {
@@ -131,6 +148,23 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
   }, []);
 
   const nodeColor = useCallback((node: GraphNode) => {
+    // If node is in history, use a lighter color
+    if (node.isHistory) {
+      switch (node.type) {
+        case 'topic':
+          return '#93c5fd'; // blue-300
+        case 'publisher':
+          return '#6ee7b7'; // emerald-300
+        case 'subscriber':
+          return '#fcd34d'; // amber-300
+        case 'node':
+          return '#c4b5fd'; // violet-300
+        default:
+          return '#d1d5db'; // gray-300
+      }
+    }
+    
+    // Regular colors for non-history nodes
     switch (node.type) {
       case 'topic':
         return '#3b82f6'; // blue-500
@@ -153,21 +187,35 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
     if (onNodeClick) {
       onNodeClick(node);
     } else if (node.type === 'topic') {
+      addToJourney({
+        type: 'topic',
+        name: node.name,
+        namespace: node.namespace || '/'
+      });
       router.push(`/topics?topic=${encodeURIComponent(node.name)}`);
     } else if (node.type === 'node' || node.type === 'publisher' || node.type === 'subscriber') {
-      // For nodes, publishers, and subscribers, navigate to the node page
       const fullNodeName = node.namespace === '/' ? node.name : `${node.namespace}/${node.name}`;
+      addToJourney({
+        type: 'node',
+        name: node.name,
+        namespace: node.namespace || '/'
+      });
       router.push(`/nodes?node=${encodeURIComponent(fullNodeName)}`);
     }
-  }, [router, onNodeClick]);
+  }, [router, onNodeClick, addToJourney]);
 
   // Auto-fit the graph when it's ready
   useEffect(() => {
     if (graphRef.current) {
       // Wait for the graph to stabilize
-      setTimeout(() => {
-        graphRef.current.zoomToFit(400);
+      const timeoutId = setTimeout(() => {
+        if (graphRef.current) {  // Check again in case component unmounted
+          graphRef.current.zoomToFit(400);
+        }
       }, 100);
+      
+      // Cleanup timeout on unmount
+      return () => clearTimeout(timeoutId);
     }
   }, [data, dimensions]);
 
@@ -233,7 +281,7 @@ export default function ROSGraph({ data: propData, nodeInfo, onNodeClick }: ROSG
           }
         }}
         onEngineStop={() => {
-          if (graphRef.current) {
+          if (graphRef.current) {  // Add null check here too
             graphRef.current.zoomToFit(400);
           }
         }}
